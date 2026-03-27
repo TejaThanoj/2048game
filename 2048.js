@@ -2,19 +2,112 @@ var board;
 var score = 0;
 var rows = 4;
 var columns = 4;
+var currentUser = null;
 
-window.onload = function() {
+// --- Authentication ---
+
+function getUsers() {
+    return JSON.parse(localStorage.getItem("2048_users") || "{}");
+}
+
+function saveUsers(users) {
+    localStorage.setItem("2048_users", JSON.stringify(users));
+}
+
+function loginUser(username) {
+    var users = getUsers();
+    if (!users[username]) {
+        users[username] = { highScore: 0 };
+        saveUsers(users);
+    }
+    currentUser = username;
+    localStorage.setItem("2048_current_user", username);
+}
+
+function logoutUser() {
+    currentUser = null;
+    localStorage.removeItem("2048_current_user");
+    score = 0;
+    document.getElementById("score").innerText = "0";
+    document.getElementById("board").innerHTML = "";
+    showLoginOverlay();
+}
+
+function getUserHighScore() {
+    if (!currentUser) return 0;
+    var users = getUsers();
+    return (users[currentUser] && users[currentUser].highScore) || 0;
+}
+
+function updateHighScore() {
+    if (!currentUser) return;
+    var users = getUsers();
+    if (!users[currentUser]) {
+        users[currentUser] = { highScore: 0 };
+    }
+    if (score > users[currentUser].highScore) {
+        users[currentUser].highScore = score;
+        saveUsers(users);
+    }
+    document.getElementById("best-score").innerText = users[currentUser].highScore;
+}
+
+function showLoginOverlay() {
+    document.getElementById("login-overlay").style.display = "flex";
+    document.getElementById("username-input").value = "";
+    document.getElementById("login-error").innerText = "";
+    document.getElementById("user-bar").style.display = "none";
+    setTimeout(function() {
+        document.getElementById("username-input").focus();
+    }, 50);
+}
+
+function hideLoginOverlay() {
+    document.getElementById("login-overlay").style.display = "none";
+    document.getElementById("user-bar").style.display = "flex";
+}
+
+function handleLogin() {
+    var input = document.getElementById("username-input");
+    var username = input.value.trim().replace(/[^a-zA-Z0-9_\- ]/g, "");
+    if (!username) {
+        document.getElementById("login-error").innerText = "Please enter a valid username (letters, numbers, spaces, - and _ only).";
+        return;
+    }
+    loginUser(username);
+    hideLoginOverlay();
+    document.getElementById("welcome-msg").innerText = "Hello, " + currentUser + "!";
+    document.getElementById("best-score").innerText = getUserHighScore();
+    score = 0;
+    document.getElementById("score").innerText = "0";
+    document.getElementById("board").innerHTML = "";
     setGame();
 }
 
-function setGame() {
-    // board = [
-    //     [2, 2, 2, 2],
-    //     [2, 2, 2, 2],
-    //     [4, 4, 8, 8],
-    //     [4, 4, 8, 8]
-    // ];
+// --- Game Logic ---
 
+window.onload = function() {
+    document.getElementById("login-btn").addEventListener("click", handleLogin);
+    document.getElementById("username-input").addEventListener("keyup", function(e) {
+        if (e.key === "Enter") handleLogin();
+    });
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+
+    var savedUser = localStorage.getItem("2048_current_user");
+    var users = getUsers();
+    if (savedUser && users[savedUser]) {
+        loginUser(savedUser);
+        hideLoginOverlay();
+        document.getElementById("welcome-msg").innerText = "Hello, " + currentUser + "!";
+        document.getElementById("best-score").innerText = getUserHighScore();
+        setGame();
+    } else {
+        localStorage.removeItem("2048_current_user");
+        showLoginOverlay();
+    }
+}
+
+function setGame() {
     board = [
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -52,6 +145,7 @@ function updateTile(tile, num) {
 }
 
 document.addEventListener('keyup', (e) => {
+    if (!currentUser) return;
     if (e.code == "ArrowLeft") {
         slideLeft();
         setTwo();
@@ -70,6 +164,7 @@ document.addEventListener('keyup', (e) => {
         setTwo();
     }
     document.getElementById("score").innerText = score;
+    updateHighScore();
 })
 
 function filterZero(row){
@@ -125,10 +220,6 @@ function slideUp() {
     for (let c = 0; c < columns; c++) {
         let row = [board[0][c], board[1][c], board[2][c], board[3][c]];
         row = slide(row);
-        // board[0][c] = row[0];
-        // board[1][c] = row[1];
-        // board[2][c] = row[2];
-        // board[3][c] = row[3];
         for (let r = 0; r < rows; r++){
             board[r][c] = row[r];
             let tile = document.getElementById(r.toString() + "-" + c.toString());
@@ -144,10 +235,6 @@ function slideDown() {
         row.reverse();
         row = slide(row);
         row.reverse();
-        // board[0][c] = row[0];
-        // board[1][c] = row[1];
-        // board[2][c] = row[2];
-        // board[3][c] = row[3];
         for (let r = 0; r < rows; r++){
             board[r][c] = row[r];
             let tile = document.getElementById(r.toString() + "-" + c.toString());
