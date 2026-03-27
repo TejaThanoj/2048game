@@ -69,9 +69,9 @@ function hideLoginOverlay() {
 
 function handleLogin() {
     var input = document.getElementById("username-input");
-    var username = input.value.trim();
+    var username = input.value.trim().replace(/[^a-zA-Z0-9_\- ]/g, "");
     if (!username) {
-        document.getElementById("login-error").innerText = "Please enter a username.";
+        document.getElementById("login-error").innerText = "Please enter a valid username (letters, numbers, spaces, - and _ only).";
         return;
     }
     loginUser(username);
@@ -94,13 +94,15 @@ window.onload = function() {
     document.getElementById("logout-btn").addEventListener("click", logoutUser);
 
     var savedUser = localStorage.getItem("2048_current_user");
-    if (savedUser) {
+    var users = getUsers();
+    if (savedUser && users[savedUser]) {
         loginUser(savedUser);
         hideLoginOverlay();
         document.getElementById("welcome-msg").innerText = "Hello, " + currentUser + "!";
         document.getElementById("best-score").innerText = getUserHighScore();
         setGame();
     } else {
+        localStorage.removeItem("2048_current_user");
         showLoginOverlay();
     }
 }
